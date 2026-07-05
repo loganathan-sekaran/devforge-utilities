@@ -24,7 +24,8 @@ import {
   Link,
   Globe,
   Award,
-  BookOpen
+  BookOpen,
+  Github
 } from 'lucide-react';
 import { HistoryItem, BackgroundJob, ToolType } from './types';
 import JSONTool from './components/JSONTool';
@@ -371,6 +372,30 @@ export default function App() {
 
         {/* Action Widgets */}
         <div className="flex items-center gap-2">
+          {/* GitHub Repo */}
+          <a
+            href="https://github.com/loganathan-sekaran/devforge-utilities"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1E1E20] border border-[#2D2D30] text-[#9CA3AF] hover:text-[#E1E1E6] text-xs transition-all font-medium"
+            title="Open Source GitHub Repository"
+          >
+            <Github className="w-3.5 h-3.5" />
+            <span>GitHub</span>
+          </a>
+
+          {/* Report Issue Button */}
+          <a
+            href="https://github.com/loganathan-sekaran/devforge-utilities/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/20 text-xs transition-all font-bold"
+            title="Report an issue on GitHub"
+          >
+            <AlertTriangle className="w-3.5 h-3.5" />
+            <span>Report Issue</span>
+          </a>
+
           {/* Active Jobs Button */}
           <button
             onClick={() => setJobsOpen(!jobsOpen)}
@@ -547,9 +572,43 @@ export default function App() {
               </nav>
             </div>
 
+            {/* Open Source Info & Report Issue (Mobile + Sidebar) */}
+            {(sidebarExpanded || mobileMenuOpen) && (
+              <div className="px-4 mt-auto pb-2 space-y-3">
+                <div className="bg-[#1E1E20] p-3 rounded-xl border border-[#2D2D30] space-y-2">
+                  <div className="text-[10px] text-[#9CA3AF] uppercase font-bold tracking-wider">
+                    Apache 2.0 Open Source
+                  </div>
+                  <p className="text-[10px] text-[#6B7280] leading-relaxed">
+                    This website is open-source. Report issues, request features, or fork/contribute on GitHub!
+                  </p>
+                  <div className="flex flex-col gap-2 pt-1 border-t border-[#232326]">
+                    <a
+                      href="https://github.com/loganathan-sekaran/devforge-utilities"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs text-[#9CA3AF] hover:text-[#E1E1E6] transition-colors font-medium"
+                    >
+                      <Github className="w-3 h-3" />
+                      <span>Fork / Contribute</span>
+                    </a>
+                    <a
+                      href="https://github.com/loganathan-sekaran/devforge-utilities/issues"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs text-amber-500 hover:text-amber-400 transition-colors font-bold"
+                    >
+                      <AlertTriangle className="w-3 h-3" />
+                      <span>Report an Issue</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Recent Activity Section */}
-            {sidebarExpanded && (
-              <div className="p-4 mt-auto">
+            {(sidebarExpanded || mobileMenuOpen) && (
+              <div className="p-4">
                 <div className="bg-[#1E1E20] p-3 rounded-lg border border-[#2D2D30]">
                   <div className="text-[10px] text-[#9CA3AF] uppercase mb-2">Recent Activity</div>
                   {history.length > 0 ? (

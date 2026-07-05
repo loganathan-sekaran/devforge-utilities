@@ -211,23 +211,41 @@ export default function PemTool({ onSaveHistory, history }: PemToolProps) {
     const traverse = (node: ASN1Node) => {
       // Look for sequences containing OID and then a value
       if (node.tag === 0x30 && node.children.length >= 2) {
-        const oIdNode = node.children[0];
-        const valNode = node.children[1];
-        if (oIdNode.tag === 0x06) {
-          const oidStr = Array.from(oIdNode.value).join('.');
-          const valBytes = valNode.value;
-          // Convert ASCII/UTF-8 bytes to String
-          const valueStr = Array.from(valBytes)
-            .map(b => (b >= 32 && b <= 126) || b > 127 ? String.fromCharCode(b) : '')
-            .join('')
-            .trim();
+        for (let i = 0; i < node.children.length - 1; i++) {
+          const current = node.children[i];
+          const next = node.children[i + 1];
+          if (current.tag === 0x06) {
+            const oidStr = Array.from(current.value).join('.');
+            const valBytes = next.value;
+            
+            let valueStr = '';
+            if (next.tag === 0x1E) {
+              // BMPString (2 bytes per character, big endian)
+              for (let j = 0; j < valBytes.length; j += 2) {
+                if (j + 1 < valBytes.length) {
+                  const charCode = (valBytes[j] << 8) | valBytes[j + 1];
+                  valueStr += String.fromCharCode(charCode);
+                }
+              }
+            } else {
+              // General UTF-8/ASCII decode using TextDecoder if available, or fallback
+              try {
+                valueStr = new TextDecoder('utf-8').decode(valBytes);
+              } catch {
+                valueStr = Array.from(valBytes)
+                  .map(b => (b >= 32 && b <= 126) || b > 127 ? String.fromCharCode(b) : '')
+                  .join('');
+              }
+            }
+            valueStr = valueStr.trim();
 
-          if (oidStr === '85.4.3' || oidStr.endsWith('.85.4.3')) dn['CN'] = valueStr;
-          else if (oidStr === '85.4.10' || oidStr.endsWith('.85.4.10')) dn['O'] = valueStr;
-          else if (oidStr === '85.4.11' || oidStr.endsWith('.85.4.11')) dn['OU'] = valueStr;
-          else if (oidStr === '85.4.6' || oidStr.endsWith('.85.4.6')) dn['C'] = valueStr;
-          else if (oidStr === '85.4.7' || oidStr.endsWith('.85.4.7')) dn['L'] = valueStr;
-          else if (oidStr === '85.4.8' || oidStr.endsWith('.85.4.8')) dn['ST'] = valueStr;
+            if (oidStr === '85.4.3' || oidStr.endsWith('.85.4.3')) dn['CN'] = valueStr;
+            else if (oidStr === '85.4.10' || oidStr.endsWith('.85.4.10')) dn['O'] = valueStr;
+            else if (oidStr === '85.4.11' || oidStr.endsWith('.85.4.11')) dn['OU'] = valueStr;
+            else if (oidStr === '85.4.6' || oidStr.endsWith('.85.4.6')) dn['C'] = valueStr;
+            else if (oidStr === '85.4.7' || oidStr.endsWith('.85.4.7')) dn['L'] = valueStr;
+            else if (oidStr === '85.4.8' || oidStr.endsWith('.85.4.8')) dn['ST'] = valueStr;
+          }
         }
       }
       for (const child of node.children) {
