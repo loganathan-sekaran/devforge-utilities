@@ -1,0 +1,6 @@
+{
+  "name": "Developer Tools",
+  "description": "A responsive, client-side utility suite containing JSON formatters, Base64 and URL transcoders, JWT viewers, Regex validators, hash generators, UUID creators, and a diff checker. Features dark mode, local history, and background job processing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
