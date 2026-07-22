@@ -20,4 +20,22 @@ export interface BackgroundJob {
   error?: string;
 }
 
-export type ToolType = 'json' | 'base64' | 'url' | 'jwt' | 'regex' | 'hash' | 'uuid' | 'diff' | 'rest' | 'pem' | 'markdown';
+export type ToolType =
+  | 'json'
+  | 'base64'
+  | 'url'
+  | 'jwt'
+  | 'regex'
+  | 'hash'
+  | 'uuid'
+  | 'diff'
+  | 'rest'
+  | 'pem'
+  | 'markdown'
+  | 'timestamp'
+  | 'cron'
+  | 'curl'
+  | 'color'
+  | 'sql'
+  | 'escaper'
+  | 'chmod';

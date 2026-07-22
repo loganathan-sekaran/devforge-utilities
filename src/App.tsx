@@ -25,7 +25,11 @@ import {
   Globe,
   Award,
   BookOpen,
-  Github
+  Github,
+  Calendar,
+  Terminal,
+  Palette,
+  Database
 } from 'lucide-react';
 import { HistoryItem, BackgroundJob, ToolType } from './types';
 import JSONTool from './components/JSONTool';
@@ -40,6 +44,13 @@ import JobsTracker from './components/JobsTracker';
 import RestNetworkTool from './components/RestNetworkTool';
 import PemTool from './components/PemTool';
 import MarkdownTool from './components/MarkdownTool';
+import TimestampTool from './components/TimestampTool';
+import CronTool from './components/CronTool';
+import CurlTool from './components/CurlTool';
+import ColorTool from './components/ColorTool';
+import SqlTool from './components/SqlTool';
+import EscaperTool from './components/EscaperTool';
+import ChmodTool from './components/ChmodTool';
 
 const categories = [
   { id: 'formatters', name: 'Data Formatters' },
@@ -52,24 +63,35 @@ const categories = [
 export default function App() {
   const toolsList = [
     { id: 'json', name: 'JSON Formatter', desc: 'Beautify or minify JSON', icon: Braces, category: 'formatters' },
+    { id: 'sql', name: 'SQL Formatter', desc: 'Beautify & minify SQL queries', icon: Database, category: 'formatters' },
     { id: 'base64', name: 'Base64 Encoder/Decoder', desc: 'Encode or decode Base64 data & files', icon: Binary, category: 'encoders' },
     { id: 'url', name: 'URL Encoder/Decoder', desc: 'Encode or decode URL parameters offline', icon: Link, category: 'encoders' },
+    { id: 'escaper', name: 'HTML & String Escaper', desc: 'Escape HTML entities & JS strings', icon: Binary, category: 'encoders' },
     { id: 'jwt', name: 'JWT Viewer', desc: 'Decode token claims offline', icon: FileCode, category: 'security' },
     { id: 'pem', name: 'PEM Key & Cert Decoder', desc: 'Decode keys & X.509 certificates', icon: Award, category: 'security' },
+    { id: 'hash', name: 'Hash Generator', desc: 'MD5, SHA-256, SHA-512', icon: Hash, category: 'security' },
+    { id: 'chmod', name: 'Chmod Calculator', desc: 'Linux file permissions octal & symbolic', icon: Shield, category: 'security' },
+    { id: 'timestamp', name: 'Unix Timestamp & Epoch', desc: 'Live UTC clock & timezone converter', icon: Clock, category: 'text' },
+    { id: 'cron', name: 'Cron Parser & Explainer', desc: 'Human-readable cron schedule explainer', icon: Calendar, category: 'text' },
     { id: 'regex', name: 'Regex Validator', desc: 'PCRE pattern highlighter', icon: Search, category: 'text' },
     { id: 'markdown', name: 'MD File Previewer', desc: 'Live render markdown documents', icon: BookOpen, category: 'text' },
-    { id: 'hash', name: 'Hash Generator', desc: 'MD5, SHA-256, SHA-512', icon: Hash, category: 'security' },
     { id: 'uuid', name: 'UUID Generator', desc: 'Bulk generate v4 UUIDs', icon: Layers, category: 'text' },
     { id: 'diff', name: 'Diff Checker', desc: 'Compare side-by-side lines', icon: Columns, category: 'text' },
+    { id: 'color', name: 'Color & Contrast Checker', desc: 'HEX/RGB converter & WCAG contrast', icon: Palette, category: 'text' },
     { id: 'rest', name: 'REST Client & Curl Generator', desc: 'Visual HTTP and Curl executor', icon: Globe, category: 'network' },
+    { id: 'curl', name: 'cURL to Code Converter', desc: 'Convert cURL commands to JS/Python/Go/Rust', icon: Terminal, category: 'network' },
   ] as const;
+
+  const validToolIds: ToolType[] = [
+    'json', 'sql', 'base64', 'url', 'escaper', 'jwt', 'pem', 'hash', 'chmod',
+    'timestamp', 'cron', 'regex', 'markdown', 'uuid', 'diff', 'color', 'rest', 'curl'
+  ];
 
   const [activeTab, setActiveTab] = useState<ToolType>(() => {
     if (typeof window !== 'undefined' && window.location.hash) {
       const hash = window.location.hash.substring(1) as ToolType;
-      const validTools: ToolType[] = ['json', 'base64', 'url', 'jwt', 'pem', 'regex', 'markdown', 'hash', 'uuid', 'diff', 'rest'];
-      if (validTools.includes(hash)) {
-        return hash as ToolType;
+      if (validToolIds.includes(hash)) {
+        return hash;
       }
     }
     return 'json';
@@ -84,6 +106,7 @@ export default function App() {
       document.title = currentTool ? `DevForge Utilities - ${currentTool.name}` : 'DevForge Utilities';
     }
   }, [activeTab]);
+
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [darkMode, setDarkMode] = useState<boolean>(true);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -100,19 +123,6 @@ export default function App() {
     return saved !== 'false';
   });
 
-  const [isHoveringSidebar, setIsHoveringSidebar] = useState<boolean>(false);
-  const sidebarTimerRef = useRef<any>(null);
-  const autoCollapseActiveRef = useRef<boolean>(false);
-
-  // Clean up timer on unmount
-  useEffect(() => {
-    return () => {
-      if (sidebarTimerRef.current) {
-        clearTimeout(sidebarTimerRef.current);
-      }
-    };
-  }, []);
-
   const toggleSidebar = () => {
     setSidebarExpanded((prev) => {
       const next = !prev;
@@ -121,7 +131,7 @@ export default function App() {
     });
   };
 
-  // Synchronize category selection when active tab changes (e.g. from history load or auto-selection)
+  // Synchronize category selection when active tab changes
   useEffect(() => {
     const activeTool = toolsList.find(t => t.id === activeTab);
     if (activeTool) {
@@ -129,19 +139,17 @@ export default function App() {
     }
   }, [activeTab]);
 
-  // Priority based search tool filtering (direct matches first, then category matches)
+  // Priority based search tool filtering
   const getSearchMatches = (queryStr: string) => {
     const query = queryStr.trim().toLowerCase();
     if (!query) return [];
 
-    // 1. Direct tool matches (by name or description)
     const directMatches = toolsList.filter(
       tool =>
         tool.name.toLowerCase().includes(query) ||
         tool.desc.toLowerCase().includes(query)
     );
 
-    // 2. Category matches
     const matchedCategories = categories.filter(
       cat => cat.name.toLowerCase().includes(query)
     );
@@ -149,7 +157,6 @@ export default function App() {
       tool => matchedCategories.some(cat => cat.id === tool.category)
     );
 
-    // Combine them, keeping direct matches first, and preventing duplicates
     const combined = [...directMatches];
     for (const tool of categoryToolMatches) {
       if (!combined.some(t => t.id === tool.id)) {
@@ -160,24 +167,14 @@ export default function App() {
     return combined;
   };
 
-  // Auto-select a tool immediately if there is exactly one tool in the search result
-  useEffect(() => {
-    const matches = getSearchMatches(searchQuery);
-    if (matches.length === 1) {
-      setActiveTab(matches[0].id);
-    }
-  }, [searchQuery]);
-
   // Initialize and load preferences from LocalStorage
   useEffect(() => {
-    // Light/Dark mode
     const savedTheme = localStorage.getItem('dev_tools_theme');
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const isDark = savedTheme ? savedTheme === 'dark' : systemPrefersDark;
     setDarkMode(isDark);
     document.documentElement.classList.toggle('dark', isDark);
 
-    // History logs
     const savedHistory = localStorage.getItem('dev_tools_history');
     if (savedHistory) {
       try {
@@ -187,11 +184,9 @@ export default function App() {
       }
     }
 
-    // Jobs (rehydrate background jobs)
     const savedJobs = localStorage.getItem('dev_tools_jobs');
     if (savedJobs) {
       try {
-        // Mark any stale "running" jobs as failed to prevent perpetual spinner on refresh
         const parsedJobs: BackgroundJob[] = JSON.parse(savedJobs);
         const validatedJobs = parsedJobs.map(job => 
           job.status === 'running' 
@@ -205,7 +200,6 @@ export default function App() {
     }
   }, []);
 
-  // Save changes back to localStorage
   const saveHistoryToStorage = (updatedHistory: HistoryItem[]) => {
     setHistory(updatedHistory);
     localStorage.setItem('dev_tools_history', JSON.stringify(updatedHistory));
@@ -216,7 +210,6 @@ export default function App() {
     localStorage.setItem('dev_tools_jobs', JSON.stringify(updatedJobs));
   };
 
-  // Toggle Dark Theme
   const handleToggleTheme = () => {
     const nextDark = !darkMode;
     setDarkMode(nextDark);
@@ -224,7 +217,6 @@ export default function App() {
     localStorage.setItem('dev_tools_theme', nextDark ? 'dark' : 'light');
   };
 
-  // Log new operation history
   const handleSaveHistory = (input: string, output: string, metadata?: Record<string, any>) => {
     const newItem: HistoryItem = {
       id: Math.random().toString(36).substring(2, 9),
@@ -234,11 +226,10 @@ export default function App() {
       output,
       metadata,
     };
-    const updated = [newItem, ...history].slice(0, 100); // Limit to last 100 ops
+    const updated = [newItem, ...history].slice(0, 100);
     saveHistoryToStorage(updated);
   };
 
-  // History removals
   const handleClearHistory = () => {
     saveHistoryToStorage([]);
   };
@@ -248,7 +239,6 @@ export default function App() {
     saveHistoryToStorage(filtered);
   };
 
-  // Background Job Handlers
   const handleAddJob = (job: BackgroundJob) => {
     const updated = [job, ...jobs];
     saveJobsToStorage(updated);
@@ -282,27 +272,23 @@ export default function App() {
     saveJobsToStorage(filtered);
   };
 
-  // Restore history data inputs
   const handleLoadHistoryInput = (item: HistoryItem) => {
-    // Switch tab
-    if (item.tool === 'json' || item.tool === 'jwt' || item.tool === 'regex' || item.tool === 'hash' || item.tool === 'uuid' || item.tool === 'diff' || item.tool === 'base64' || item.tool === 'url') {
-      setActiveTab(item.tool);
+    if (validToolIds.includes(item.tool as ToolType)) {
+      setActiveTab(item.tool as ToolType);
     }
   };
 
-  const currentActiveToolName = toolsList.find(t => t.id === activeTab)?.name || 'Utility';
   const runningJobsCount = jobs.filter(j => j.status === 'running').length;
   const filteredTools = toolsList.filter(tool => tool.category === activeCategory);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 font-sans flex flex-col transition-colors duration-200" id="main-app-shell">
+    <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100 font-sans flex flex-col transition-colors duration-200" id="main-app-shell">
       {/* Upper Navigation Bar */}
-      <header className="sticky top-0 z-40 bg-[#121214] border-b border-[#232326] px-4 lg:px-6 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-40 bg-white dark:bg-[#121214] border-b border-gray-200 dark:border-[#232326] px-4 lg:px-6 py-3 flex items-center justify-between transition-colors">
         <div className="flex items-center gap-4">
-          {/* Mobile menu trigger */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-1.5 rounded-lg hover:bg-[#1E1E20] text-[#9CA3AF] lg:hidden focus:outline-none"
+            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#1E1E20] text-gray-600 dark:text-[#9CA3AF] lg:hidden focus:outline-none"
             id="mobile-menu-trigger"
           >
             <Menu className="w-5 h-5" />
@@ -314,48 +300,47 @@ export default function App() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
               </svg>
             </div>
-            <h1 className="text-base lg:text-lg font-bold tracking-tight text-[#E1E1E6]">
-              DevForge <span className="text-[#6B7280] font-normal">Utilities</span>
+            <h1 className="text-base lg:text-lg font-bold tracking-tight text-gray-900 dark:text-[#E1E1E6]">
+              DevForge <span className="text-gray-500 dark:text-[#6B7280] font-normal">Utilities</span>
             </h1>
           </div>
 
-          {/* Desktop Sidebar Toggle */}
           <button
             onClick={toggleSidebar}
-            className="hidden lg:flex p-1.5 ml-2 rounded-lg hover:bg-[#1E1E20] text-[#9CA3AF] hover:text-[#E1E1E6] focus:outline-none transition-colors"
+            className="hidden lg:flex p-1.5 ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#1E1E20] text-gray-600 dark:text-[#9CA3AF] hover:text-gray-900 dark:hover:text-[#E1E1E6] focus:outline-none transition-colors"
             title={sidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
           >
             {sidebarExpanded ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
           </button>
         </div>
 
-        {/* Search input in header (matches design HTML perfectly) */}
+        {/* Search input in header */}
         <div className="relative hidden md:block max-w-xs w-full mx-4">
           <input
             type="text"
             placeholder="Search tools..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-[#1E1E20] border border-[#2D2D30] text-sm text-[#E1E1E6] placeholder-[#6B7280] rounded-full px-4 py-1.5 w-full focus:outline-none focus:ring-1 focus:ring-[#3B82F6] transition-colors"
+            className="bg-gray-100 dark:bg-[#1E1E20] border border-gray-200 dark:border-[#2D2D30] text-sm text-gray-900 dark:text-[#E1E1E6] placeholder-gray-500 dark:placeholder-[#6B7280] rounded-full px-4 py-1.5 w-full focus:outline-none focus:ring-2 focus:ring-[#3B82F6] transition-colors"
           />
           {searchQuery && (() => {
             const matches = getSearchMatches(searchQuery);
             return (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-[#121214] border border-[#2D2D30] rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-[#121214] border border-gray-200 dark:border-[#2D2D30] rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto">
                 {matches.map(tool => {
                   const catName = categories.find(c => c.id === tool.category)?.name || '';
                   return (
                     <button
                       key={tool.id}
                       onClick={() => {
-                        setActiveTab(tool.id);
+                        setActiveTab(tool.id as ToolType);
                         setSearchQuery('');
                       }}
-                      className="w-full text-left px-4 py-2.5 hover:bg-[#1E1E20] text-sm text-[#9CA3AF] hover:text-[#E1E1E6] flex items-center justify-between transition-colors"
+                      className="w-full text-left px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-[#1E1E20] text-sm text-gray-700 dark:text-[#9CA3AF] hover:text-gray-900 dark:hover:text-[#E1E1E6] flex items-center justify-between transition-colors"
                     >
                       <span>{tool.name}</span>
                       {catName && (
-                        <span className="text-[9px] bg-[#1E1E20] text-[#6B7280] px-1.5 py-0.5 rounded border border-[#2D2D30] uppercase tracking-wider">
+                        <span className="text-[9px] bg-gray-100 dark:bg-[#1E1E20] text-gray-500 dark:text-[#6B7280] px-1.5 py-0.5 rounded border border-gray-200 dark:border-[#2D2D30] uppercase tracking-wider">
                           {catName}
                         </span>
                       )}
@@ -363,7 +348,7 @@ export default function App() {
                   );
                 })}
                 {matches.length === 0 && (
-                  <div className="px-4 py-3 text-xs text-[#6B7280]">No tools match "{searchQuery}"</div>
+                  <div className="px-4 py-3 text-xs text-gray-500 dark:text-[#6B7280]">No tools match "{searchQuery}"</div>
                 )}
               </div>
             );
@@ -372,37 +357,34 @@ export default function App() {
 
         {/* Action Widgets */}
         <div className="flex items-center gap-2">
-          {/* GitHub Repo */}
           <a
             href="https://github.com/loganathan-sekaran/devforge-utilities"
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1E1E20] border border-[#2D2D30] text-[#9CA3AF] hover:text-[#E1E1E6] text-xs transition-all font-medium"
+            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-[#1E1E20] border border-gray-200 dark:border-[#2D2D30] text-gray-700 dark:text-[#9CA3AF] hover:text-gray-900 dark:hover:text-[#E1E1E6] text-xs transition-all font-medium"
             title="Open Source GitHub Repository"
           >
             <Github className="w-3.5 h-3.5" />
             <span>GitHub</span>
           </a>
 
-          {/* Report Issue Button */}
           <a
             href="https://github.com/loganathan-sekaran/devforge-utilities/issues"
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/20 text-xs transition-all font-bold"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-500 border border-amber-500/20 text-xs transition-all font-bold"
             title="Report an issue on GitHub"
           >
             <AlertTriangle className="w-3.5 h-3.5" />
             <span>Report Issue</span>
           </a>
 
-          {/* Active Jobs Button */}
           <button
             onClick={() => setJobsOpen(!jobsOpen)}
             className={`relative p-2 rounded-xl transition-all ${
               jobsOpen || runningJobsCount > 0
-                ? 'bg-[#1E1E20] text-[#3B82F6] border border-[#2D2D30]'
-                : 'bg-[#1E1E20] border border-[#2D2D30] text-[#9CA3AF] hover:text-[#E1E1E6]'
+                ? 'bg-gray-100 dark:bg-[#1E1E20] text-[#3B82F6] border border-gray-200 dark:border-[#2D2D30]'
+                : 'bg-gray-100 dark:bg-[#1E1E20] border border-gray-200 dark:border-[#2D2D30] text-gray-600 dark:text-[#9CA3AF] hover:text-gray-900 dark:hover:text-[#E1E1E6]'
             }`}
             title="Background progressive jobs tracker"
             id="header-jobs-btn"
@@ -415,11 +397,10 @@ export default function App() {
             )}
           </button>
 
-          {/* Activity logs button */}
           <button
             onClick={() => setHistoryOpen(!historyOpen)}
-            className={`p-2 rounded-xl bg-[#1E1E20] border border-[#2D2D30] text-[#9CA3AF] hover:text-[#E1E1E6] transition-all ${
-              historyOpen ? 'ring-1 ring-[#3B82F6] text-[#3B82F6]' : ''
+            className={`p-2 rounded-xl bg-gray-100 dark:bg-[#1E1E20] border border-gray-200 dark:border-[#2D2D30] text-gray-600 dark:text-[#9CA3AF] hover:text-gray-900 dark:hover:text-[#E1E1E6] transition-all ${
+              historyOpen ? 'ring-2 ring-[#3B82F6] text-[#3B82F6]' : ''
             }`}
             title="Global operations logs"
             id="header-history-btn"
@@ -427,22 +408,21 @@ export default function App() {
             <Clock className="w-4 h-4" />
           </button>
 
-          <div className="h-6 w-px bg-[#2D2D30] mx-1" />
+          <div className="h-6 w-px bg-gray-200 dark:bg-[#2D2D30] mx-1" />
 
-          {/* Theme control */}
           <button
             onClick={handleToggleTheme}
-            className="p-2 rounded-xl bg-[#1E1E20] border border-[#2D2D30] text-[#9CA3AF] hover:text-[#E1E1E6] transition-all"
-            title="Toggle high contrast dark theme"
+            className="p-2 rounded-xl bg-gray-100 dark:bg-[#1E1E20] border border-gray-200 dark:border-[#2D2D30] text-gray-600 dark:text-[#9CA3AF] hover:text-gray-900 dark:hover:text-[#E1E1E6] transition-all"
+            title="Toggle Theme"
             id="header-theme-btn"
           >
-            {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+            {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-gray-700" />}
           </button>
         </div>
       </header>
 
       {/* Horizontal categories navigation */}
-      <nav className="flex gap-6 px-6 bg-[#121214] border-b border-[#232326] overflow-x-auto sticky top-[57px] z-30">
+      <nav className="flex gap-6 px-6 bg-white dark:bg-[#121214] border-b border-gray-200 dark:border-[#232326] overflow-x-auto sticky top-[57px] z-30 transition-colors">
         {categories.map((cat) => {
           const isActive = activeCategory === cat.id;
           return (
@@ -450,36 +430,15 @@ export default function App() {
               key={cat.id}
               onClick={() => {
                 setActiveCategory(cat.id);
-                // Also automatically switch active tab to the first tool of this category if it exists
                 const catTools = toolsList.filter(t => t.category === cat.id);
                 if (catTools.length > 0) {
-                  setActiveTab(catTools[0].id);
-                }
-
-                // Show side menu by default on selecting category
-                setSidebarExpanded(true);
-                autoCollapseActiveRef.current = true;
-
-                // Clear any existing collapse timers
-                if (sidebarTimerRef.current) {
-                  clearTimeout(sidebarTimerRef.current);
-                  sidebarTimerRef.current = null;
-                }
-
-                // If not currently hovering, start the auto-collapse timer (5 seconds)
-                if (!isHoveringSidebar) {
-                  sidebarTimerRef.current = setTimeout(() => {
-                    if (autoCollapseActiveRef.current) {
-                      setSidebarExpanded(false);
-                      autoCollapseActiveRef.current = false;
-                    }
-                  }, 5000);
+                  setActiveTab(catTools[0].id as ToolType);
                 }
               }}
               className={`py-3 border-b-2 text-sm font-medium transition-colors whitespace-nowrap focus:outline-none ${
                 isActive
                   ? 'border-[#3B82F6] text-[#3B82F6]'
-                  : 'border-transparent text-[#9CA3AF] hover:text-[#E1E1E6]'
+                  : 'border-transparent text-gray-500 dark:text-[#9CA3AF] hover:text-gray-900 dark:hover:text-[#E1E1E6]'
               }`}
             >
               {cat.name}
@@ -492,27 +451,7 @@ export default function App() {
       <div className="flex-1 flex flex-col lg:flex-row relative">
         {/* Left Navigation Sidebar */}
         <aside
-          onMouseEnter={() => {
-            setIsHoveringSidebar(true);
-            if (sidebarTimerRef.current) {
-              clearTimeout(sidebarTimerRef.current);
-              sidebarTimerRef.current = null;
-            }
-          }}
-          onMouseLeave={() => {
-            setIsHoveringSidebar(false);
-            if (autoCollapseActiveRef.current) {
-              // User left the sidebar; start a quick 3-second collapse timer
-              if (sidebarTimerRef.current) clearTimeout(sidebarTimerRef.current);
-              sidebarTimerRef.current = setTimeout(() => {
-                if (autoCollapseActiveRef.current) {
-                  setSidebarExpanded(false);
-                  autoCollapseActiveRef.current = false;
-                }
-              }, 3000);
-            }
-          }}
-          className={`lg:block fixed lg:sticky top-[109px] bottom-0 left-0 bg-[#0E0E10] border-r border-[#232326] z-30 transform lg:transform-none transition-all duration-200 ease-in-out ${
+          className={`lg:block fixed lg:sticky top-[109px] bottom-0 left-0 bg-white dark:bg-[#0E0E10] border-r border-gray-200 dark:border-[#232326] z-30 transform lg:transform-none transition-all duration-200 ease-in-out ${
             sidebarExpanded ? 'w-56' : 'lg:w-16 w-0 lg:opacity-100 opacity-0 lg:translate-x-0 -translate-x-full'
           } ${
             mobileMenuOpen ? 'translate-x-0 w-56 opacity-100' : '-translate-x-full lg:translate-x-0'
@@ -521,15 +460,9 @@ export default function App() {
         >
           <div className="h-full flex flex-col justify-between py-4 overflow-x-hidden">
             <div className="space-y-4">
-              {sidebarExpanded ? (
-                <div className="px-4 mb-2 text-[10px] uppercase font-bold text-[#4B5563] tracking-widest truncate">
-                  Available Tools
-                </div>
-              ) : (
-                <div className="px-4 mb-2 text-[10px] uppercase font-bold text-[#4B5563] text-center tracking-widest truncate hidden lg:block">
-                  Tools
-                </div>
-              )}
+              <div className={`px-4 mb-2 text-[10px] uppercase font-bold text-gray-400 dark:text-[#4B5563] tracking-widest truncate ${!sidebarExpanded && 'lg:text-center'}`}>
+                {sidebarExpanded ? 'Available Tools' : 'Tools'}
+              </div>
 
               <nav className="flex flex-col" id="sidebar-tools-list">
                 {filteredTools.map((tool) => {
@@ -539,14 +472,8 @@ export default function App() {
                     <button
                       key={tool.id}
                       onClick={() => {
-                        setActiveTab(tool.id);
+                        setActiveTab(tool.id as ToolType);
                         setMobileMenuOpen(false);
-                        // Tool is selected/used, so cancel the auto-collapse
-                        autoCollapseActiveRef.current = false;
-                        if (sidebarTimerRef.current) {
-                          clearTimeout(sidebarTimerRef.current);
-                          sidebarTimerRef.current = null;
-                        }
                       }}
                       title={!sidebarExpanded ? tool.name : undefined}
                       className={`flex items-center text-sm transition-colors text-left focus:outline-none ${
@@ -555,8 +482,8 @@ export default function App() {
                           : 'lg:justify-center lg:px-0 py-3 gap-0 px-4'
                       } ${
                         isActive
-                          ? 'bg-[#1E1E20] text-[#3B82F6] font-medium border-r-2 border-[#3B82F6]'
-                          : 'text-[#9CA3AF] hover:bg-[#151518] hover:text-[#E1E1E6]'
+                          ? 'bg-blue-50 dark:bg-[#1E1E20] text-[#3B82F6] font-medium border-r-2 border-[#3B82F6]'
+                          : 'text-gray-600 dark:text-[#9CA3AF] hover:bg-gray-100 dark:hover:bg-[#151518] hover:text-gray-900 dark:hover:text-[#E1E1E6]'
                       }`}
                     >
                       <Icon className="w-4 h-4 shrink-0" />
@@ -564,67 +491,19 @@ export default function App() {
                     </button>
                   );
                 })}
-                {filteredTools.length === 0 && (
-                  <div className="px-4 py-6 text-center text-xs text-[#6B7280]">
-                    More tools in this category coming soon!
-                  </div>
-                )}
               </nav>
             </div>
 
-            {/* Open Source Info & Report Issue (Mobile + Sidebar) */}
+            {/* Footer info inside sidebar */}
             {(sidebarExpanded || mobileMenuOpen) && (
               <div className="px-4 mt-auto pb-2 space-y-3">
-                <div className="bg-[#1E1E20] p-3 rounded-xl border border-[#2D2D30] space-y-2">
-                  <div className="text-[10px] text-[#9CA3AF] uppercase font-bold tracking-wider">
+                <div className="bg-gray-50 dark:bg-[#1E1E20] p-3 rounded-xl border border-gray-200 dark:border-[#2D2D30] space-y-2">
+                  <div className="text-[10px] text-gray-500 dark:text-[#9CA3AF] uppercase font-bold tracking-wider">
                     Apache 2.0 Open Source
                   </div>
-                  <p className="text-[10px] text-[#6B7280] leading-relaxed">
-                    This website is open-source. Report issues, request features, or fork/contribute on GitHub!
+                  <p className="text-[10px] text-gray-500 dark:text-[#6B7280] leading-relaxed">
+                    Client-side utilities sandbox. Report issues or contribute on GitHub!
                   </p>
-                  <div className="flex flex-col gap-2 pt-1 border-t border-[#232326]">
-                    <a
-                      href="https://github.com/loganathan-sekaran/devforge-utilities"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs text-[#9CA3AF] hover:text-[#E1E1E6] transition-colors font-medium"
-                    >
-                      <Github className="w-3 h-3" />
-                      <span>Fork / Contribute</span>
-                    </a>
-                    <a
-                      href="https://github.com/loganathan-sekaran/devforge-utilities/issues"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs text-amber-500 hover:text-amber-400 transition-colors font-bold"
-                    >
-                      <AlertTriangle className="w-3 h-3" />
-                      <span>Report an Issue</span>
-                    </a>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Recent Activity Section */}
-            {(sidebarExpanded || mobileMenuOpen) && (
-              <div className="p-4">
-                <div className="bg-[#1E1E20] p-3 rounded-lg border border-[#2D2D30]">
-                  <div className="text-[10px] text-[#9CA3AF] uppercase mb-2">Recent Activity</div>
-                  {history.length > 0 ? (
-                    <ul className="space-y-2 text-xs">
-                      {history.slice(0, 3).map((item) => (
-                        <li key={item.id} className="flex items-center justify-between text-[#6B7280]">
-                          <span className="truncate max-w-[110px]">{toolsList.find(t => t.id === item.tool)?.name || item.tool}</span>
-                          <span className="text-[8px] shrink-0">
-                            {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <div className="text-[10px] text-zinc-600">No recent activity</div>
-                  )}
                 </div>
               </div>
             )}
@@ -635,18 +514,24 @@ export default function App() {
         {mobileMenuOpen && (
           <div
             onClick={() => setMobileMenuOpen(false)}
-            className="fixed inset-0 bg-black/20 dark:bg-black/40 lg:hidden z-20 backdrop-blur-xs"
+            className="fixed inset-0 bg-black/30 lg:hidden z-20 backdrop-blur-sm"
             id="mobile-backdrop"
           />
         )}
 
         {/* Main interactive content deck */}
         <main className="flex-1 p-6 lg:p-10 max-w-7xl mx-auto w-full overflow-hidden" id="active-tool-viewport">
-          <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-850 rounded-2xl p-6 lg:p-8 shadow-xs">
+          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-6 lg:p-8 shadow-xs">
             {activeTab === 'json' && (
               <JSONTool
                 onSaveHistory={handleSaveHistory}
                 history={history.filter(h => h.tool === 'json')}
+              />
+            )}
+            {activeTab === 'sql' && (
+              <SqlTool
+                onSaveHistory={handleSaveHistory}
+                history={history.filter(h => h.tool === 'sql')}
               />
             )}
             {activeTab === 'base64' && (
@@ -663,6 +548,12 @@ export default function App() {
                 history={history.filter(h => h.tool === 'url')}
               />
             )}
+            {activeTab === 'escaper' && (
+              <EscaperTool
+                onSaveHistory={handleSaveHistory}
+                history={history.filter(h => h.tool === 'escaper')}
+              />
+            )}
             {activeTab === 'jwt' && (
               <JWTTool
                 onSaveHistory={handleSaveHistory}
@@ -675,6 +566,32 @@ export default function App() {
                 history={history.filter(h => h.tool === 'pem')}
               />
             )}
+            {activeTab === 'hash' && (
+              <HashTool
+                onSaveHistory={handleSaveHistory}
+                history={history.filter(h => h.tool === 'hash')}
+                onAddJob={handleAddJob}
+                onUpdateJobProgress={handleUpdateJobProgress}
+              />
+            )}
+            {activeTab === 'chmod' && (
+              <ChmodTool
+                onSaveHistory={handleSaveHistory}
+                history={history.filter(h => h.tool === 'chmod')}
+              />
+            )}
+            {activeTab === 'timestamp' && (
+              <TimestampTool
+                onSaveHistory={handleSaveHistory}
+                history={history.filter(h => h.tool === 'timestamp')}
+              />
+            )}
+            {activeTab === 'cron' && (
+              <CronTool
+                onSaveHistory={handleSaveHistory}
+                history={history.filter(h => h.tool === 'cron')}
+              />
+            )}
             {activeTab === 'regex' && (
               <RegexTool
                 onSaveHistory={handleSaveHistory}
@@ -685,14 +602,6 @@ export default function App() {
               <MarkdownTool
                 onSaveHistory={handleSaveHistory}
                 history={history.filter(h => h.tool === 'markdown')}
-              />
-            )}
-            {activeTab === 'hash' && (
-              <HashTool
-                onSaveHistory={handleSaveHistory}
-                history={history.filter(h => h.tool === 'hash')}
-                onAddJob={handleAddJob}
-                onUpdateJobProgress={handleUpdateJobProgress}
               />
             )}
             {activeTab === 'uuid' && (
@@ -709,16 +618,28 @@ export default function App() {
                 history={history.filter(h => h.tool === 'diff')}
               />
             )}
+            {activeTab === 'color' && (
+              <ColorTool
+                onSaveHistory={handleSaveHistory}
+                history={history.filter(h => h.tool === 'color')}
+              />
+            )}
             {activeTab === 'rest' && (
               <RestNetworkTool
                 onSaveHistory={handleSaveHistory}
                 history={history.filter(h => h.tool === 'rest')}
               />
             )}
+            {activeTab === 'curl' && (
+              <CurlTool
+                onSaveHistory={handleSaveHistory}
+                history={history.filter(h => h.tool === 'curl')}
+              />
+            )}
           </div>
 
           {/* Privacy Disclaimer & Local Storage Clear Panel */}
-          <footer className="mt-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 p-5 rounded-2xl bg-[#F9FAFB] dark:bg-[#121214] border border-gray-100 dark:border-zinc-850 shadow-xs">
+          <footer className="mt-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 p-5 rounded-2xl bg-white dark:bg-[#121214] border border-gray-200 dark:border-[#232326] shadow-xs">
             <div className="flex items-start gap-3 max-w-2xl">
               <Shield className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
               <div className="space-y-1">
