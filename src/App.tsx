@@ -309,7 +309,18 @@ export default function App() {
             <Menu className="w-5 h-5" />
           </button>
           
-          <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              setActiveTab('home');
+              setMobileMenuOpen(false);
+              autoCollapseActiveRef.current = false;
+              if (sidebarTimerRef.current) {
+                clearTimeout(sidebarTimerRef.current);
+                sidebarTimerRef.current = null;
+              }
+            }}
+            className="flex items-center gap-3 focus:outline-none cursor-pointer hover:opacity-80 transition-opacity text-left bg-transparent border-0 p-0"
+          >
             <div className="bg-[#3B82F6] p-1.5 rounded-lg">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
@@ -318,7 +329,7 @@ export default function App() {
             <h1 className="text-base lg:text-lg font-bold tracking-tight text-gray-900 dark:text-[#E1E1E6]">
               DevForge <span className="text-gray-500 dark:text-[#6B7280] font-normal">Utilities</span>
             </h1>
-          </div>
+          </button>
 
           <button
             onClick={toggleSidebar}
