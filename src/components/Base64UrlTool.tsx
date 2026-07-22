@@ -115,6 +115,7 @@ export default function Base64UrlTool({ onSaveHistory, history, forceMode }: Bas
 
   // Base64 file states
   const [fileToProcess, setFileToProcess] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
   const [fileOutputName, setFileOutputName] = useState<string>('decoded_output.bin');
   const [fileMimeType, setFileMimeType] = useState<string>('application/octet-stream');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -427,7 +428,23 @@ export default function Base64UrlTool({ onSaveHistory, history, forceMode }: Bas
 
             {/* File selector when encoding */}
             {direction === 'encode' && (
-              <div className="flex items-center gap-3">
+              <div 
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  const files = e.dataTransfer.files;
+                  if (files && files[0]) {
+                    setFileToProcess(files[0]);
+                  }
+                }}
+                className={`flex flex-wrap items-center gap-3 p-3 border-2 border-dashed rounded-xl transition-all ${
+                  isDragging 
+                    ? 'border-amber-500 bg-amber-500/5 dark:bg-amber-500/10 scale-[1.01]' 
+                    : 'border-gray-200 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-950/20 hover:border-gray-305 dark:hover:border-zinc-700'
+                }`}
+              >
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -435,16 +452,20 @@ export default function Base64UrlTool({ onSaveHistory, history, forceMode }: Bas
                   className="hidden"
                 />
                 <button
+                  type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-all"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-all cursor-pointer"
                 >
                   <FileUp className="w-3.5 h-3.5 text-gray-400" />
-                  {fileToProcess ? fileToProcess.name : 'Choose File to Encode'}
+                  {fileToProcess ? 'Change File' : 'Choose File'}
                 </button>
+                <span className="text-xs text-gray-500 dark:text-zinc-400 truncate max-w-[200px] flex-1">
+                  {fileToProcess ? fileToProcess.name : 'or drag file here'}
+                </span>
                 {fileToProcess && (
                   <button
                     onClick={encodeUploadedFile}
-                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
+                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
                   >
                     Process File
                   </button>

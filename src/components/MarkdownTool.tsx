@@ -16,6 +16,7 @@ export default function MarkdownTool({ onSaveHistory, history }: MarkdownToolPro
   const [viewMode, setViewMode] = useState<'split' | 'edit' | 'preview'>('split');
   const [splitOrientation, setSplitOrientation] = useState<'vertical' | 'horizontal'>('vertical');
   const [copied, setCopied] = useState<boolean>(false);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -134,20 +135,45 @@ export default function MarkdownTool({ onSaveHistory, history }: MarkdownToolPro
       {/* Toolbar actions */}
       <div className="flex flex-wrap gap-2.5 items-center justify-between pb-1.5">
         <div className="flex gap-2">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            className="hidden"
-            accept=".md,.markdown,.txt"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-gray-200 dark:border-zinc-800 rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-800 text-gray-700 dark:text-zinc-300 transition-colors text-xs font-semibold shadow-2xs"
+          <div
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsDragging(false);
+              const file = e.dataTransfer.files?.[0];
+              if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                  const text = event.target?.result as string;
+                  setMarkdown(text);
+                  onSaveHistory(`Loaded MD file: ${file.name}`, `Size: ${text.length} chars`, { tool: 'markdown_preview', fileName: file.name });
+                };
+                reader.readAsText(file);
+              }
+            }}
+            className={`relative rounded-xl border transition-all ${
+              isDragging 
+                ? 'border-amber-500 bg-amber-500/5 dark:bg-amber-500/10 scale-[1.02]' 
+                : 'border-transparent'
+            }`}
           >
-            <FileUp className="w-3.5 h-3.5" />
-            Open .md File
-          </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              className="hidden"
+              accept=".md,.markdown,.txt"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-gray-200 dark:border-zinc-800 rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-800 text-gray-700 dark:text-zinc-300 transition-colors text-xs font-semibold shadow-2xs cursor-pointer"
+            >
+              <FileUp className="w-3.5 h-3.5" />
+              {isDragging ? 'Drop File' : 'Open .md File'}
+            </button>
+          </div>
           <button
             onClick={handleExportFile}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-gray-200 dark:border-zinc-800 rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-800 text-gray-700 dark:text-zinc-300 transition-colors text-xs font-semibold shadow-2xs"
@@ -192,7 +218,23 @@ export default function MarkdownTool({ onSaveHistory, history }: MarkdownToolPro
             <textarea
               value={markdown}
               onChange={(e) => setMarkdown(e.target.value)}
-              placeholder="Start typing your markdown here..."
+              onDragOver={(e) => {
+                e.preventDefault();
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const file = e.dataTransfer.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    const text = event.target?.result as string;
+                    setMarkdown(text);
+                    onSaveHistory(`Loaded MD file: ${file.name}`, `Size: ${text.length} chars`, { tool: 'markdown_preview', fileName: file.name });
+                  };
+                  reader.readAsText(file);
+                }
+              }}
+              placeholder="Start typing your markdown here... (or drag and drop a markdown file)"
               className={`w-full p-4 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950 font-mono text-xs text-gray-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 resize-y transition-all ${
                 viewMode === 'split' && splitOrientation === 'horizontal' ? 'min-h-[220px]' : 'min-h-[400px] flex-1'
               }`}

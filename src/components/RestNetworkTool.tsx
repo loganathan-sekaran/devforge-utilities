@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Copy, Check, Info, FileText, Send, Trash, Plus, AlertCircle, RefreshCw, Terminal, Sliders, Globe, Cookie, File } from 'lucide-react';
+import { Play, Copy, Check, Info, FileText, Send, Trash, Plus, AlertCircle, RefreshCw, Terminal, Sliders, Globe, Cookie, File, X } from 'lucide-react';
 import { HistoryItem } from '../types';
 
 interface RestNetworkToolProps {
@@ -24,6 +24,8 @@ export default function RestNetworkTool({ onSaveHistory, history }: RestNetworkT
 
   // Network client states
   const [method, setMethod] = useState<string>('GET');
+  const [showCustomMethod, setShowCustomMethod] = useState<boolean>(false);
+  const [customMethodInput, setCustomMethodInput] = useState<string>('');
   const [url, setUrl] = useState<string>('https://jsonplaceholder.typicode.com/posts/1');
   
   // Grid parameters states
@@ -218,7 +220,7 @@ export default function RestNetworkTool({ onSaveHistory, history }: RestNetworkT
       };
 
       // Set body payloads
-      if (method !== 'GET' && method !== 'HEAD') {
+      if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
         if (bodyType === 'json' || bodyType === 'text') {
           options.body = bodyContent;
         } else if (bodyType === 'form-urlencoded') {
@@ -653,19 +655,55 @@ export default function RestNetworkTool({ onSaveHistory, history }: RestNetworkT
               
               {/* Method & URL Input row */}
               <div className="flex gap-2.5">
-                <select
-                  value={method}
-                  onChange={(e) => setMethod(e.target.value)}
-                  className="px-3.5 py-2.5 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl font-bold text-sm text-gray-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                >
-                  <option value="GET">GET</option>
-                  <option value="POST">POST</option>
-                  <option value="PUT">PUT</option>
-                  <option value="DELETE">DELETE</option>
-                  <option value="PATCH">PATCH</option>
-                  <option value="HEAD">HEAD</option>
-                  <option value="OPTIONS">OPTIONS</option>
-                </select>
+                {showCustomMethod ? (
+                  <div className="flex gap-1.5 items-center bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl px-2.5">
+                    <input
+                      type="text"
+                      value={customMethodInput}
+                      onChange={(e) => {
+                        const val = e.target.value.toUpperCase();
+                        setCustomMethodInput(val);
+                        setMethod(val);
+                      }}
+                      placeholder="METHOD"
+                      className="w-20 py-2.5 bg-transparent border-none font-bold text-sm text-gray-800 dark:text-zinc-100 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCustomMethod(false);
+                        setMethod('GET');
+                      }}
+                      className="p-1 hover:bg-gray-200 dark:hover:bg-zinc-800 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 cursor-pointer"
+                      title="Choose standard method"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <select
+                    value={method}
+                    onChange={(e) => {
+                      if (e.target.value === 'CUSTOM') {
+                        setShowCustomMethod(true);
+                        setCustomMethodInput('');
+                        setMethod('');
+                      } else {
+                        setMethod(e.target.value);
+                      }
+                    }}
+                    className="px-3.5 py-2.5 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl font-bold text-sm text-gray-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                  >
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                    <option value="PUT">PUT</option>
+                    <option value="DELETE">DELETE</option>
+                    <option value="PATCH">PATCH</option>
+                    <option value="HEAD">HEAD</option>
+                    <option value="OPTIONS">OPTIONS</option>
+                    <option value="CUSTOM">CUSTOM...</option>
+                  </select>
+                )}
 
                 <div className="relative flex-1">
                   <input
@@ -1051,8 +1089,19 @@ export default function RestNetworkTool({ onSaveHistory, history }: RestNetworkT
 
                               <span className="text-gray-400 text-xs">=</span>
 
-                              {row.type === 'file' ? (
-                                <div className="flex-1 flex items-center gap-2 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-lg px-2.5 py-1 text-xs">
+                               {row.type === 'file' ? (
+                                  <div 
+                                    onDragOver={(e) => { e.preventDefault(); }}
+                                    onDrop={(e) => {
+                                      e.preventDefault();
+                                      const file = e.dataTransfer.files?.[0];
+                                      if (file) {
+                                        updateMultipartFormRow(index, 'file', file);
+                                      }
+                                    }}
+                                    className="flex-1 flex items-center gap-2 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-lg px-2.5 py-1 text-xs hover:border-amber-500 hover:bg-amber-500/5 dark:hover:bg-amber-500/10 transition-colors"
+                                    title="Drag & drop file here"
+                                  >
                                   <input
                                     type="file"
                                     id={`file-upload-field-${index}`}

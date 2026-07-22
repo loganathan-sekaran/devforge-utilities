@@ -21,6 +21,7 @@ export default function HashTool({ onSaveHistory, history, onAddJob, onUpdateJob
 
   // File states
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileHashResult, setFileHashResult] = useState<{
     md5: string;
@@ -187,7 +188,23 @@ export default function HashTool({ onSaveHistory, history, onAddJob, onUpdateJob
           </div>
 
           {/* File input and hashing */}
-          <div className="p-5 rounded-2xl border border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-950/30 space-y-4">
+          <div 
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsDragging(false);
+              const files = e.dataTransfer.files;
+              if (files && files[0]) {
+                setSelectedFile(files[0]);
+              }
+            }}
+            className={`p-5 rounded-2xl border-2 border-dashed transition-all space-y-4 ${
+              isDragging 
+                ? 'border-amber-500 bg-amber-500/5 dark:bg-amber-500/10 scale-[1.01]' 
+                : 'border-gray-250 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-950/30 hover:border-gray-300 dark:hover:border-zinc-700'
+            }`}
+          >
             <div className="flex items-center gap-3">
               <input
                 type="file"
@@ -196,21 +213,22 @@ export default function HashTool({ onSaveHistory, history, onAddJob, onUpdateJob
                 className="hidden"
               />
               <button
+                type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm font-semibold text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm font-semibold text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
               >
                 <FileText className="w-4 h-4 text-gray-400" />
                 Select File
               </button>
-              <div className="text-xs text-gray-500 dark:text-zinc-400 truncate flex-1">
-                {selectedFile ? `${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB)` : 'No file selected (Supports large files)'}
+              <div className="text-xs text-gray-500 dark:text-zinc-400 truncate flex-1 font-mono">
+                {selectedFile ? `${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB)` : 'or drag file here (supports large files)'}
               </div>
             </div>
-
+ 
             {selectedFile && (
               <button
                 onClick={startFileHashJob}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-medium text-sm rounded-xl transition-colors shadow-xs"
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-medium text-sm rounded-xl transition-colors shadow-xs cursor-pointer"
               >
                 <RefreshCw className="w-4 h-4 animate-spin-slow" />
                 Compute File Hashes (Background Job)

@@ -28,7 +28,7 @@ export default function PemTool({ onSaveHistory, history }: PemToolProps) {
   const [keyDetails, setKeyDetails] = useState<{ bits?: number; format?: string; type?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-
+  const [isDragging, setIsDragging] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // File loading
@@ -408,7 +408,28 @@ export default function PemTool({ onSaveHistory, history }: PemToolProps) {
               Paste PEM Content
             </span>
 
-            <div className="flex items-center gap-2">
+            <div
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    const text = event.target?.result as string;
+                    setPemInput(text);
+                  };
+                  reader.readAsText(file);
+                }
+              }}
+              className={`relative rounded-lg border transition-all ${
+                isDragging 
+                  ? 'border-amber-500 bg-amber-500/5 dark:bg-amber-500/10 scale-[1.02]' 
+                  : 'border-transparent'
+              }`}
+            >
               <input
                 type="file"
                 ref={fileInputRef}
@@ -417,19 +438,35 @@ export default function PemTool({ onSaveHistory, history }: PemToolProps) {
                 accept=".pem,.crt,.key,.pub,.der,.cer"
               />
               <button
+                type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-zinc-800 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800/80 text-gray-600 dark:text-zinc-400 transition-colors text-xs font-semibold"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-zinc-800 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800/80 text-gray-600 dark:text-zinc-400 transition-colors text-xs font-semibold cursor-pointer"
               >
                 <FileUp className="w-3.5 h-3.5" />
-                Upload Key/Cert File
+                {isDragging ? 'Drop File' : 'Upload Key/Cert File'}
               </button>
             </div>
           </div>
-
+ 
           <textarea
             value={pemInput}
             onChange={(e) => setPemInput(e.target.value)}
-            placeholder="-----BEGIN CERTIFICATE-----\nMIIFdzCCBF+gAwIBAgIQD...\n-----END CERTIFICATE-----"
+            onDragOver={(e) => {
+              e.preventDefault();
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const file = e.dataTransfer.files?.[0];
+              if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                  const text = event.target?.result as string;
+                  setPemInput(text);
+                };
+                reader.readAsText(file);
+              }
+            }}
+            placeholder="-----BEGIN CERTIFICATE-----\nMIIFdzCCBF+gAwIBAgIQD...\n-----END CERTIFICATE-----\n\n(Or drag and drop key/cert file here)"
             className="w-full min-h-[300px] lg:min-h-[400px] p-4 rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950 font-mono text-xs text-gray-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 resize-none transition-all"
           />
 
