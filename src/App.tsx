@@ -29,7 +29,8 @@ import {
   Calendar,
   Terminal,
   Palette,
-  Database
+  Database,
+  Home
 } from 'lucide-react';
 import { HistoryItem, BackgroundJob, ToolType } from './types';
 import JSONTool from './components/JSONTool';
@@ -51,6 +52,7 @@ import ColorTool from './components/ColorTool';
 import SqlTool from './components/SqlTool';
 import EscaperTool from './components/EscaperTool';
 import ChmodTool from './components/ChmodTool';
+import HomeTool from './components/HomeTool';
 
 const categories = [
   { id: 'formatters', name: 'Data Formatters' },
@@ -83,7 +85,7 @@ export default function App() {
   ] as const;
 
   const validToolIds: ToolType[] = [
-    'json', 'sql', 'base64', 'url', 'escaper', 'jwt', 'pem', 'hash', 'chmod',
+    'home', 'json', 'sql', 'base64', 'url', 'escaper', 'jwt', 'pem', 'hash', 'chmod',
     'timestamp', 'cron', 'regex', 'markdown', 'uuid', 'diff', 'color', 'rest', 'curl'
   ];
 
@@ -94,7 +96,7 @@ export default function App() {
         return hash;
       }
     }
-    return 'json';
+    return 'home';
   });
   const [activeCategory, setActiveCategory] = useState<string>('formatters');
 
@@ -122,6 +124,19 @@ export default function App() {
     const saved = localStorage.getItem('dev_tools_sidebar_expanded');
     return saved !== 'false';
   });
+
+  const [isHoveringSidebar, setIsHoveringSidebar] = useState<boolean>(false);
+  const sidebarTimerRef = useRef<any>(null);
+  const autoCollapseActiveRef = useRef<boolean>(false);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (sidebarTimerRef.current) {
+        clearTimeout(sidebarTimerRef.current);
+      }
+    };
+  }, []);
 
   const toggleSidebar = () => {
     setSidebarExpanded((prev) => {
@@ -434,6 +449,26 @@ export default function App() {
                 if (catTools.length > 0) {
                   setActiveTab(catTools[0].id as ToolType);
                 }
+
+                // Show side menu by default on selecting category
+                setSidebarExpanded(true);
+                autoCollapseActiveRef.current = true;
+
+                // Clear any existing collapse timers
+                if (sidebarTimerRef.current) {
+                  clearTimeout(sidebarTimerRef.current);
+                  sidebarTimerRef.current = null;
+                }
+
+                // If not currently hovering, start the auto-collapse timer (5 seconds)
+                if (!isHoveringSidebar) {
+                  sidebarTimerRef.current = setTimeout(() => {
+                    if (autoCollapseActiveRef.current) {
+                      setSidebarExpanded(false);
+                      autoCollapseActiveRef.current = false;
+                    }
+                  }, 5000);
+                }
               }}
               className={`py-3 border-b-2 text-sm font-medium transition-colors whitespace-nowrap focus:outline-none ${
                 isActive
@@ -451,6 +486,26 @@ export default function App() {
       <div className="flex-1 flex flex-col lg:flex-row relative">
         {/* Left Navigation Sidebar */}
         <aside
+          onMouseEnter={() => {
+            setIsHoveringSidebar(true);
+            if (sidebarTimerRef.current) {
+              clearTimeout(sidebarTimerRef.current);
+              sidebarTimerRef.current = null;
+            }
+          }}
+          onMouseLeave={() => {
+            setIsHoveringSidebar(false);
+            if (autoCollapseActiveRef.current) {
+              // User left the sidebar; start a quick 3-second collapse timer
+              if (sidebarTimerRef.current) clearTimeout(sidebarTimerRef.current);
+              sidebarTimerRef.current = setTimeout(() => {
+                if (autoCollapseActiveRef.current) {
+                  setSidebarExpanded(false);
+                  autoCollapseActiveRef.current = false;
+                }
+              }, 3000);
+            }
+          }}
           className={`lg:block fixed lg:sticky top-[109px] bottom-0 left-0 bg-white dark:bg-[#0E0E10] border-r border-gray-200 dark:border-[#232326] z-30 transform lg:transform-none transition-all duration-200 ease-in-out ${
             sidebarExpanded ? 'w-56' : 'lg:w-16 w-0 lg:opacity-100 opacity-0 lg:translate-x-0 -translate-x-full'
           } ${
@@ -465,6 +520,32 @@ export default function App() {
               </div>
 
               <nav className="flex flex-col" id="sidebar-tools-list">
+                <button
+                  onClick={() => {
+                    setActiveTab('home');
+                    setMobileMenuOpen(false);
+                    // Tool is selected/used, so cancel the auto-collapse
+                    autoCollapseActiveRef.current = false;
+                    if (sidebarTimerRef.current) {
+                      clearTimeout(sidebarTimerRef.current);
+                      sidebarTimerRef.current = null;
+                    }
+                  }}
+                  title={!sidebarExpanded ? "All Utilities (Home)" : undefined}
+                  className={`flex items-center text-sm transition-colors text-left focus:outline-none ${
+                    sidebarExpanded 
+                      ? 'gap-3 px-4 py-2.5' 
+                      : 'lg:justify-center lg:px-0 py-3 gap-0 px-4'
+                  } ${
+                    activeTab === 'home'
+                      ? 'bg-blue-50 dark:bg-[#1E1E20] text-[#3B82F6] font-medium border-r-2 border-[#3B82F6]'
+                      : 'text-gray-600 dark:text-[#9CA3AF] hover:bg-gray-100 dark:hover:bg-[#151518] hover:text-gray-900 dark:hover:text-[#E1E1E6]'
+                  }`}
+                >
+                  <Home className="w-4 h-4 shrink-0" />
+                  <span className={`${sidebarExpanded ? 'block' : 'lg:hidden block'} truncate`}>Dashboard Home</span>
+                </button>
+                <div className="h-px bg-gray-200 dark:bg-[#232326] my-2 mx-4" />
                 {filteredTools.map((tool) => {
                   const Icon = tool.icon;
                   const isActive = activeTab === tool.id;
@@ -474,6 +555,12 @@ export default function App() {
                       onClick={() => {
                         setActiveTab(tool.id as ToolType);
                         setMobileMenuOpen(false);
+                        // Tool is selected/used, so cancel the auto-collapse
+                        autoCollapseActiveRef.current = false;
+                        if (sidebarTimerRef.current) {
+                          clearTimeout(sidebarTimerRef.current);
+                          sidebarTimerRef.current = null;
+                        }
                       }}
                       title={!sidebarExpanded ? tool.name : undefined}
                       className={`flex items-center text-sm transition-colors text-left focus:outline-none ${
@@ -494,16 +581,25 @@ export default function App() {
               </nav>
             </div>
 
-            {/* Footer info inside sidebar */}
-            {(sidebarExpanded || mobileMenuOpen) && (
-              <div className="px-4 mt-auto pb-2 space-y-3">
-                <div className="bg-gray-50 dark:bg-[#1E1E20] p-3 rounded-xl border border-gray-200 dark:border-[#2D2D30] space-y-2">
-                  <div className="text-[10px] text-gray-500 dark:text-[#9CA3AF] uppercase font-bold tracking-wider">
-                    Apache 2.0 Open Source
-                  </div>
-                  <p className="text-[10px] text-gray-500 dark:text-[#6B7280] leading-relaxed">
-                    Client-side utilities sandbox. Report issues or contribute on GitHub!
-                  </p>
+            {/* Recent Activity Section */}
+            {sidebarExpanded && (
+              <div className="p-4 mt-auto">
+                <div className="bg-gray-50 dark:bg-[#1E1E20] p-3 rounded-lg border border-gray-200 dark:border-[#2D2D30]">
+                  <div className="text-[10px] text-gray-500 dark:text-[#9CA3AF] uppercase mb-2">Recent Activity</div>
+                  {history.length > 0 ? (
+                    <ul className="space-y-2 text-xs">
+                      {history.slice(0, 3).map((item) => (
+                        <li key={item.id} className="flex items-center justify-between text-gray-600 dark:text-[#6B7280]">
+                          <span className="truncate max-w-[110px]">{toolsList.find(t => t.id === item.tool)?.name || item.tool}</span>
+                          <span className="text-[8px] shrink-0">
+                            {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="text-[10px] text-gray-400 dark:text-zinc-650">No recent activity</div>
+                  )}
                 </div>
               </div>
             )}
@@ -522,6 +618,18 @@ export default function App() {
         {/* Main interactive content deck */}
         <main className="flex-1 p-6 lg:p-10 max-w-7xl mx-auto w-full overflow-hidden" id="active-tool-viewport">
           <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-6 lg:p-8 shadow-xs">
+            {activeTab === 'home' && (
+              <HomeTool
+                onSelectTool={(id) => setActiveTab(id)}
+                onSelectCategory={(catId) => {
+                  setActiveCategory(catId);
+                  const catTools = toolsList.filter(t => t.category === catId);
+                  if (catTools.length > 0) {
+                    setActiveTab(catTools[0].id as ToolType);
+                  }
+                }}
+              />
+            )}
             {activeTab === 'json' && (
               <JSONTool
                 onSaveHistory={handleSaveHistory}

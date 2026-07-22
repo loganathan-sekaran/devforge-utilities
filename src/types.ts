@@ -21,6 +21,7 @@ export interface BackgroundJob {
 }
 
 export type ToolType =
+  | 'home'
   | 'json'
   | 'base64'
   | 'url'
