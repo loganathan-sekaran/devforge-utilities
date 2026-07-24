@@ -216,15 +216,8 @@ export default function Base64UrlTool({ onSaveHistory, history, forceMode }: Bas
   };
 
   // Base64 file processing
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files[0]) {
-      setFileToProcess(files[0]);
-    }
-  };
-
-  const encodeUploadedFile = () => {
-    if (!fileToProcess) return;
+  const encodeFile = (file: File) => {
+    setBase64Error(null);
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result as string;
@@ -235,13 +228,28 @@ export default function Base64UrlTool({ onSaveHistory, history, forceMode }: Bas
       }
       setBase64Output(base64Segment);
       setDecodedData(null);
-      onSaveHistory(`[File: ${fileToProcess.name}]`, base64Segment, { tool: 'base64_file', direction: 'encode', urlSafe });
+      onSaveHistory(`[File: ${file.name}]`, base64Segment, { tool: 'base64_file', direction: 'encode', urlSafe });
     };
     reader.onerror = () => {
       setBase64Error('Failed to read file');
     };
-    reader.readAsDataURL(fileToProcess);
+    reader.readAsDataURL(file);
   };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files[0]) {
+      setFileToProcess(files[0]);
+      encodeFile(files[0]);
+    }
+  };
+
+  // Re-encode file when urlSafe setting changes
+  useEffect(() => {
+    if (fileToProcess) {
+      encodeFile(fileToProcess);
+    }
+  }, [urlSafe]);
 
   const decodeToFile = () => {
     setBase64Error(null);
@@ -437,12 +445,13 @@ export default function Base64UrlTool({ onSaveHistory, history, forceMode }: Bas
                   const files = e.dataTransfer.files;
                   if (files && files[0]) {
                     setFileToProcess(files[0]);
+                    encodeFile(files[0]);
                   }
                 }}
                 className={`flex flex-wrap items-center gap-3 p-3 border-2 border-dashed rounded-xl transition-all ${
                   isDragging 
                     ? 'border-amber-500 bg-amber-500/5 dark:bg-amber-500/10 scale-[1.01]' 
-                    : 'border-gray-200 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-950/20 hover:border-gray-305 dark:hover:border-zinc-700'
+                    : 'border-gray-200 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-950/20 hover:border-gray-300 dark:hover:border-zinc-755'
                 }`}
               >
                 <input
@@ -464,10 +473,14 @@ export default function Base64UrlTool({ onSaveHistory, history, forceMode }: Bas
                 </span>
                 {fileToProcess && (
                   <button
-                    onClick={encodeUploadedFile}
-                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
+                    type="button"
+                    onClick={() => {
+                      setFileToProcess(null);
+                      setBase64Output('');
+                    }}
+                    className="px-3 py-1.5 bg-red-500 hover:bg-red-650 active:bg-red-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
                   >
-                    Process File
+                    Clear File
                   </button>
                 )}
               </div>
