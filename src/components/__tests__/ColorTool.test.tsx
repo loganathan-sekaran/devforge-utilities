@@ -9,7 +9,7 @@ describe('ColorTool Component', () => {
 
     expect(screen.getByText('Color Code Converter & WCAG Contrast Checker')).toBeInTheDocument();
 
-    const hexInput = screen.getByRole('textbox');
+    const hexInput = screen.getByRole('textbox') as HTMLInputElement;
     expect(hexInput.value).toBe('#3B82F6');
 
     // Default conversions

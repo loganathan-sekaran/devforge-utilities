@@ -33,7 +33,7 @@ describe('RegexTool Component', () => {
 
     await waitFor(() => {
       // Validate that error state is caught and displayed
-      expect(screen.getByText(/Invalid regular expression/i || /unterminated/i)).toBeInTheDocument();
+      expect(screen.getByText(/Invalid regular expression|unterminated/i)).toBeInTheDocument();
     });
   });
 });

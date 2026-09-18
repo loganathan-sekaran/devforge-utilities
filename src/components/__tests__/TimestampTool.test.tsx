@@ -31,4 +31,74 @@ describe('TimestampTool Component', () => {
       expect(screen.getByText('Please enter a valid numeric Unix timestamp.')).toBeInTheDocument();
     });
   });
+
+  it('converts UTC to selected timezone (IST) correctly', async () => {
+    render(<TimestampTool onSaveHistory={vi.fn()} history={[]} />);
+
+    expect(screen.getByText('UTC ⇄ Timezone Converter (To & Fro)')).toBeInTheDocument();
+
+    const datetimeInput = screen.getByPlaceholderText('YYYY-MM-DDTHH:mm:ss');
+    // Set 10:00:00 UTC
+    fireEvent.change(datetimeInput, { target: { value: '2026-09-18T10:00:00' } });
+
+    // With IST (+05:30), 10:00:00 UTC should be 15:30:00 IST
+    await waitFor(() => {
+      expect(screen.getByText('2026-09-18 15:30:00')).toBeInTheDocument();
+      expect(screen.getAllByText('+05:30').length).toBeGreaterThan(0);
+    });
+  });
+
+  it('swaps conversion direction from IST to UTC and back to and fro', async () => {
+    const onSaveHistory = vi.fn();
+    render(<TimestampTool onSaveHistory={onSaveHistory} history={[]} />);
+
+    const datetimeInput = screen.getByPlaceholderText('YYYY-MM-DDTHH:mm:ss');
+    // Enter 10:00 UTC -> 15:30 IST
+    fireEvent.change(datetimeInput, { target: { value: '2026-09-18T10:00:00' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('2026-09-18 15:30:00')).toBeInTheDocument();
+    });
+
+    // Click "Swap Direction" to convert from IST to UTC
+    const swapButton = screen.getByTitle('Swap Direction (To and Fro)');
+    fireEvent.click(swapButton);
+
+    // The input should now reflect 15:30, and the converted result should be 10:00:00 UTC
+    await waitFor(() => {
+      expect(screen.getByText('2026-09-18 10:00:00')).toBeInTheDocument();
+    });
+
+    // Save to history
+    const saveButton = screen.getByRole('button', { name: /Save Conversion to History/i });
+    fireEvent.click(saveButton);
+    expect(onSaveHistory).toHaveBeenCalledWith(
+      expect.stringContaining('Asia/Kolkata ➔ UTC'),
+      '2026-09-18 10:00:00',
+      expect.objectContaining({ direction: 'tz_to_utc', timezone: 'Asia/Kolkata' })
+    );
+
+    // Swap back (to and fro)
+    fireEvent.click(swapButton);
+    await waitFor(() => {
+      expect(screen.getByText('2026-09-18 15:30:00')).toBeInTheDocument();
+    });
+  });
+
+  it('allows converting to other selected timezones like Tokyo (JST)', async () => {
+    render(<TimestampTool onSaveHistory={vi.fn()} history={[]} />);
+
+    const datetimeInput = screen.getByPlaceholderText('YYYY-MM-DDTHH:mm:ss');
+    fireEvent.change(datetimeInput, { target: { value: '2026-09-18T10:00:00' } });
+
+    // Click JST preset button
+    const jstButton = screen.getByRole('button', { name: /JST/i });
+    fireEvent.click(jstButton);
+
+    // JST is UTC+9, so 10:00 UTC is 19:00 JST
+    await waitFor(() => {
+      expect(screen.getByText('2026-09-18 19:00:00')).toBeInTheDocument();
+      expect(screen.getAllByText('+09:00').length).toBeGreaterThan(0);
+    });
+  });
 });
