@@ -1,10 +1,18 @@
 #!/usr/bin/env bash
 set -e
 
+# Locate gcloud binary
+GCLOUD_BIN=$(which gcloud 2>/dev/null || echo "$HOME/google-cloud-sdk/bin/gcloud")
+
+if [ ! -x "$GCLOUD_BIN" ]; then
+  echo "❌ Error: gcloud CLI not found. Please run: gcloud auth login"
+  exit 1
+fi
+
 # Usage: ./deploy.sh [EXISTING_SERVICE_NAME] [REGION] [PROJECT_ID]
 SERVICE_NAME=${1:-${SERVICE_NAME:-"devforge-utilities"}}
 REGION=${2:-${REGION:-"us-central1"}}
-PROJECT_ID=${3:-${PROJECT_ID:-""}}
+PROJECT_ID=${3:-${PROJECT_ID:-$("$GCLOUD_BIN" config get-value project 2>/dev/null)}}
 
 PROJECT_FLAG=""
 if [ -n "$PROJECT_ID" ]; then
@@ -22,14 +30,6 @@ echo "=========================================================="
 # 1. Typecheck & verify production build
 echo "📦 Running production build checks..."
 npm run build
-
-# Locate gcloud binary
-GCLOUD_BIN=$(which gcloud 2>/dev/null || echo "$HOME/google-cloud-sdk/bin/gcloud")
-
-if [ ! -x "$GCLOUD_BIN" ]; then
-  echo "❌ Error: gcloud CLI not found. Please run: gcloud auth login"
-  exit 1
-fi
 
 # 2. Build container image via Google Cloud Build
 IMAGE="gcr.io/$PROJECT_ID/$SERVICE_NAME:latest"
