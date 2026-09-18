@@ -10,8 +10,8 @@ if [ ! -x "$GCLOUD_BIN" ]; then
 fi
 
 # Usage: ./deploy.sh [EXISTING_SERVICE_NAME] [REGION] [PROJECT_ID]
-SERVICE_NAME=${1:-${SERVICE_NAME:-"devforge-utilities"}}
-REGION=${2:-${REGION:-"us-central1"}}
+SERVICE_NAME=${1:-${SERVICE_NAME:-"developer-tools"}}
+REGION=${2:-${REGION:-"asia-southeast1"}}
 PROJECT_ID=${3:-${PROJECT_ID:-$("$GCLOUD_BIN" config get-value project 2>/dev/null)}}
 
 PROJECT_FLAG=""
